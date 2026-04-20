@@ -24,7 +24,9 @@ router.post('/orders-create', async (req, res) => {
   const shop = req.headers['x-shopify-shop-domain']
 
   const gateway = (order.gateway || '').toLowerCase()
+  console.log(`Webhook order #${order.order_number} — gateway: "${gateway}" — email: ${order.email}`)
   if (!gateway.includes('cib') && !gateway.includes('dahabia')) {
+    console.log(`Gateway ignoré: "${gateway}"`)
     return res.status(200).send('OK')
   }
 
