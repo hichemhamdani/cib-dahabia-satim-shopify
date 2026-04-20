@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
     // Charger la config SATIM spécifique à ce shop
     const shopConfig = await getShopConfig(shop)
     if (!shopConfig?.satimUsername) {
-      return res.status(503).send(`Paiement non configuré pour ce store (shop reçu: "${shop}"). Contactez le marchand.`)
+      return res.status(503).send('Paiement non configuré pour ce store. Contactez le marchand.')
     }
 
     const satimResponse = await satimRegisterOrder({
@@ -62,7 +62,6 @@ router.get('/', async (req, res) => {
       <html><body style="font-family:sans-serif;text-align:center;padding:40px">
         <h2 style="color:#ef4444">Erreur serveur</h2>
         <p>${err.message}</p>
-        ${err.cause ? `<p style="color:#999;font-size:13px">Cause: ${err.cause?.message || JSON.stringify(err.cause)}</p>` : ''}
       </body></html>
     `)
   }
