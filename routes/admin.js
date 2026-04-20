@@ -110,9 +110,34 @@ router.post('/register', async (req, res) => {
   }
 
   const cleanShop = shop.trim().replace(/https?:\/\//, '').replace(/\/$/, '')
+  const cleanToken = accessToken.trim()
 
   try {
-    await saveSession(cleanShop, { accessToken: accessToken.trim(), scope: 'read_orders,write_orders' })
+    await saveSession(cleanShop, { accessToken: cleanToken, scope: 'read_orders,write_orders' })
+
+    // Enregistrer le webhook orders/create
+    const webhookUrl = `${process.env.HOST}/webhooks/orders-create`
+    try {
+      const response = await fetch(`https://${cleanShop}/admin/api/2024-10/webhooks.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': cleanToken,
+        },
+        body: JSON.stringify({
+          webhook: { topic: 'orders/create', address: webhookUrl, format: 'json' },
+        }),
+      })
+      const data = await response.json()
+      if (data.errors) {
+        console.warn('Webhook déjà existant ou erreur:', JSON.stringify(data.errors))
+      } else {
+        console.log(`Webhook orders/create enregistré pour ${cleanShop}`)
+      }
+    } catch (whErr) {
+      console.warn('Erreur enregistrement webhook:', whErr.message)
+    }
+
     res.redirect(`/admin/register?saved=1`)
   } catch (err) {
     res.redirect('/admin/register?error=' + encodeURIComponent(err.message))
