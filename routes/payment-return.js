@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { satimConfirmOrder } from '../lib/satim.js'
 import { getSession, getPendingPayment, deletePendingPayment, deletePendingOrder } from '../lib/storage.js'
-import { shopify } from '../lib/shopify.js'
+import { getShopify } from '../lib/shopify.js'
 
 const router = Router()
 
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
       const session = getSession(payment.shop)
       if (session) {
         try {
-          const client = new shopify.clients.Rest({ session })
+          const client = new getShopify().clients.Rest({ session })
           await client.post({
             path: `orders/${shopifyOrderId}/transactions`,
             data: {

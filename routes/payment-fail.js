@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { cancelDraftOrder } from '../lib/shopify.js'
-import { getSession, getPendingPayment, deletePendingPayment } from '../lib/storage.js'
+import { getPendingPayment, deletePendingPayment } from '../lib/storage.js'
 
 const router = Router()
 
@@ -14,12 +13,6 @@ router.get('/', async (req, res) => {
   if (order_id) {
     const payment = getPendingPayment(order_id)
     if (payment) {
-      try {
-        const session = getSession(payment.shop)
-        if (session) await cancelDraftOrder(session, payment.draftOrderId)
-      } catch (err) {
-        console.error('Failed to cancel draft order:', err.message)
-      }
       deletePendingPayment(order_id)
     }
   }

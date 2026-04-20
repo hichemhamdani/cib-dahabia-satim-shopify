@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { shopify } from '../lib/shopify.js'
+import { getShopify } from '../lib/shopify.js'
 import { saveSession, getSession } from '../lib/storage.js'
 
 const router = Router()
@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
   const shop = req.query.shop
   if (!shop) return res.status(400).send('Missing ?shop parameter')
 
-  await shopify.auth.begin({
+  await getShopify().auth.begin({
     shop,
     callbackPath: '/auth/callback',
     isOnline: false,
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 // Step 2: Shopify redirects back with auth code → exchange for access token
 router.get('/callback', async (req, res) => {
   try {
-    const callbackResponse = await shopify.auth.callback({
+    const callbackResponse = await getShopify().auth.callback({
       rawRequest: req,
       rawResponse: res,
     })
@@ -31,7 +31,7 @@ router.get('/callback', async (req, res) => {
 
     // Enregistrer le webhook orders/create
     try {
-      const client = new shopify.clients.Rest({ session })
+      const client = new getShopify().clients.Rest({ session })
       await client.post({
         path: 'webhooks',
         data: {
