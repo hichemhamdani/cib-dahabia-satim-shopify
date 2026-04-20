@@ -62,6 +62,7 @@ router.get('/', async (req, res) => {
       <html><body style="font-family:sans-serif;text-align:center;padding:40px">
         <h2 style="color:#ef4444">Erreur serveur</h2>
         <p>${err.message}</p>
+        ${err.cause ? `<p style="color:#999;font-size:13px">Cause: ${err.cause?.message || JSON.stringify(err.cause)}</p>` : ''}
       </body></html>
     `)
   }
