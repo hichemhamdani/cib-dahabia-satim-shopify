@@ -99,6 +99,43 @@ router.get('/register', async (req, res) => {
   `)
 })
 
+// GET /admin/sync-session?from=...&to=... — copie la session d'un domaine à l'autre
+router.get('/sync-session', async (req, res) => {
+  if (!checkAuth(req, res)) return
+
+  const { from, to } = req.query
+  if (!from || !to) return res.status(400).send('Paramètres ?from= et ?to= requis.')
+
+  const session = await getSession(from)
+  if (!session) return res.status(404).send(`Session introuvable pour ${from}`)
+
+  const cleanTo = to.trim().replace(/https?:\/\//, '').replace(/\/$/, '')
+  await saveSession(cleanTo, { accessToken: session.accessToken, scope: session.scope })
+
+  // Enregistrer le webhook pour le nouveau domaine
+  const webhookUrl = `${process.env.HOST}/webhooks/orders-create`
+  try {
+    const response = await fetch(`https://${cleanTo}/admin/api/2024-10/webhooks.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': session.accessToken,
+      },
+      body: JSON.stringify({
+        webhook: { topic: 'orders/create', address: webhookUrl, format: 'json' },
+      }),
+    })
+    const data = await response.json()
+    if (data.errors) {
+      console.warn('Webhook sync:', JSON.stringify(data.errors))
+    }
+  } catch (err) {
+    console.warn('Erreur webhook sync:', err.message)
+  }
+
+  res.send(`Session copiée de <strong>${from}</strong> vers <strong>${cleanTo}</strong> avec succès.`)
+})
+
 // POST /admin/register — enregistre le token manuellement
 router.post('/register', async (req, res) => {
   if (!checkAuth(req, res)) return
