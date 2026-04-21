@@ -1,14 +1,9 @@
 import { Router } from 'express'
 import { satimConfirmOrder } from '../lib/satim.js'
 import { getSession, getPendingPayment, deletePendingPayment, deletePendingOrder } from '../lib/storage.js'
-import { getShopify } from '../lib/shopify.js'
 
 const router = Router()
 
-/**
- * GET /payment/return?order_id=...&orderId=...&shopify_order_id=...
- * SATIM redirects here on successful payment.
- */
 router.get('/', async (req, res) => {
   const { order_id, orderId: satimOrderId, shopify_order_id } = req.query
 
@@ -18,7 +13,6 @@ router.get('/', async (req, res) => {
   if (!payment) return res.status(404).send('Paiement introuvable ou déjà traité.')
 
   try {
-    // Confirmer avec SATIM
     const confirmation = await satimConfirmOrder(satimOrderId || payment.satimOrderId)
 
     if (Number(confirmation.ErrorCode) !== 0) {
@@ -30,25 +24,39 @@ router.get('/', async (req, res) => {
     // Marquer la commande Shopify comme payée
     const shopifyOrderId = shopify_order_id || payment.shopifyOrderId
     if (shopifyOrderId) {
-      const session = getSession(payment.shop)
-      if (session) {
+      const session = await getSession(payment.shop)
+      if (session?.accessToken) {
         try {
-          const client = new getShopify().clients.Rest({ session })
-          await client.post({
-            path: `orders/${shopifyOrderId}/transactions`,
-            data: {
-              transaction: {
-                kind: 'capture',
-                status: 'success',
-                amount: String(payment.total),
-                gateway: 'CIB / Dahabia',
+          const response = await fetch(
+            `https://${payment.shop}/admin/api/2024-10/orders/${shopifyOrderId}/transactions.json`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': session.accessToken,
               },
-            },
-          })
-          deletePendingOrder(shopifyOrderId)
+              body: JSON.stringify({
+                transaction: {
+                  kind: 'capture',
+                  status: 'success',
+                  amount: String(payment.total),
+                  gateway: 'CIB / Dahabia',
+                },
+              }),
+            }
+          )
+          const data = await response.json()
+          if (data.errors) {
+            console.error('Erreur Shopify transaction:', JSON.stringify(data.errors))
+          } else {
+            console.log(`Commande ${shopifyOrderId} marquée payée pour ${payment.shop}`)
+            deletePendingOrder(shopifyOrderId)
+          }
         } catch (err) {
           console.error('Erreur marquage commande payée:', err.message)
         }
+      } else {
+        console.warn(`Pas de session pour ${payment.shop} — commande non marquée payée`)
       }
     }
 
