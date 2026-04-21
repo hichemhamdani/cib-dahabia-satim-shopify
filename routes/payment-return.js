@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     // Confirmer avec SATIM
     const confirmation = await satimConfirmOrder(satimOrderId || payment.satimOrderId)
 
-    if (confirmation.ErrorCode !== 0) {
+    if (Number(confirmation.ErrorCode) !== 0) {
       return res.redirect(
         `/payment/fail?order_id=${order_id}&shopify_order_id=${shopify_order_id}&reason=${encodeURIComponent(confirmation.ErrorMessage)}`
       )
