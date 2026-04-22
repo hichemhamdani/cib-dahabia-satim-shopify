@@ -24,7 +24,9 @@ router.get('/', async (req, res) => {
     // Marquer la commande Shopify comme payée
     const shopifyOrderId = shopify_order_id || payment.shopifyOrderId
     if (shopifyOrderId) {
+      console.log(`payment.shop = "${payment.shop}"`)
       const session = await getSession(payment.shop)
+      console.log(`session trouvée: ${!!session} — token: ${session?.accessToken?.substring(0, 10)}...`)
       if (session?.accessToken) {
         try {
           const response = await fetch(
