@@ -202,6 +202,44 @@ router.post('/register', async (req, res) => {
   }
 })
 
+// GET /admin/fetch-token?shop=xxx — obtient un token via client_credentials et le sauvegarde
+router.get('/fetch-token', async (req, res) => {
+  if (!checkAuth(req, res)) return
+
+  const { shop } = req.query
+  if (!shop) return res.status(400).send('Paramètre ?shop= requis.')
+
+  const apiKey = process.env.SHOPIFY_API_KEY
+  const apiSecret = process.env.SHOPIFY_API_SECRET
+  if (!apiKey || !apiSecret) return res.status(500).send('SHOPIFY_API_KEY / SHOPIFY_API_SECRET manquants.')
+
+  try {
+    const resp = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: apiKey, client_secret: apiSecret }),
+    })
+    const data = await resp.json()
+    if (!data.access_token) {
+      return res.status(400).send(`Erreur Shopify: ${JSON.stringify(data)}`)
+    }
+
+    const expiresIn = data.expires_in || 86400
+    const expiresAt = new Date(Date.now() + expiresIn * 1000)
+    await saveSession(shop, { accessToken: data.access_token, scope: data.scope, tokenExpiresAt: expiresAt })
+
+    res.send(`
+      <p>✓ Token obtenu et sauvegardé pour <strong>${shop}</strong></p>
+      <p>Préfixe : <code>${data.access_token.substring(0, 15)}...</code></p>
+      <p>Expire le : ${expiresAt.toLocaleString('fr-FR')}</p>
+      <p>Scopes : ${data.scope}</p>
+      <p><a href="/admin">← Retour</a></p>
+    `)
+  } catch (err) {
+    res.status(500).send(`Erreur: ${err.message}`)
+  }
+})
+
 // GET /admin — liste des stores enregistrés + statut
 router.get('/', async (req, res) => {
   if (!checkAuth(req, res)) return
