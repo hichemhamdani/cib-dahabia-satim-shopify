@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { getSession, saveSession, getShopConfig } from '../lib/storage.js'
+import { connectDB } from '../lib/mongodb.js'
+import { ShopSession } from '../lib/models.js'
 
 const router = Router()
 
@@ -97,6 +99,25 @@ router.get('/register', async (req, res) => {
     </body>
     </html>
   `)
+})
+
+// GET /admin/sessions — liste tous les tokens en MongoDB
+router.get('/sessions', async (req, res) => {
+  if (!checkAuth(req, res)) return
+  await connectDB()
+  const sessions = await ShopSession.find({}, 'shop accessToken updatedAt').lean()
+  const rows = sessions.map(s => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #f0f0f0">${s.shop}</td>
+      <td style="padding:8px;border-bottom:1px solid #f0f0f0;font-family:monospace">${s.accessToken?.substring(0, 15)}...</td>
+      <td style="padding:8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">${new Date(s.updatedAt).toLocaleString('fr-FR')}</td>
+    </tr>
+  `).join('')
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;padding:32px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px;background:#f6f6f7}</style></head><body>
+    <h2>Sessions MongoDB (${sessions.length})</h2>
+    <table><tr><th>Shop</th><th>Token (début)</th><th>Mis à jour</th></tr>${rows}</table>
+    <p style="margin-top:16px"><a href="/admin">← Retour</a></p>
+  </body></html>`)
 })
 
 // GET /admin/sync-session?from=...&to=... — copie la session d'un domaine à l'autre
